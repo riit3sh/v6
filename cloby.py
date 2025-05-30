@@ -16,7 +16,7 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "mistral"  # Recommended small, fast open-source model
 
 class Cloby:
-    def __init__(self, df: Optional[pd.DataFrame] = None):
+    def _init_(self, df: Optional[pd.DataFrame] = None):
         self.df = df
         self.personality = {
             "name": "Cloby",
@@ -27,17 +27,25 @@ class Cloby:
         self.conversation_history = []
 
     def _query_llm(self, prompt: str) -> str:
-        try:
-            response = requests.post(
-                OLLAMA_API_URL,
-                json={"model": MODEL_NAME, "prompt": prompt, "stream": False},
-                timeout=30
-            )
-            response.raise_for_status()
-            return response.json().get("response", "")
-        except Exception as e:
-            print(f"LLM error: {e}")
-            return "I'm having trouble accessing my knowledge base right now."
+        import time
+        max_retries = 5
+        retry_delay = 10  # seconds
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    OLLAMA_API_URL,
+                    json={"model": MODEL_NAME, "prompt": prompt, "stream": False},
+                    timeout=120
+                )
+                response.raise_for_status()
+                return response.json().get("response", "")
+            except Exception as e:
+                print(f"LLM error on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    return "I'm having trouble accessing my knowledge base right now."
 
     def _summarize_data(self) -> str:
         if self.df is None:
@@ -130,11 +138,10 @@ def create_chat_interface(df: Optional[pd.DataFrame] = None):
 
     return interface
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     try:
         student_data = process_data("Sample Students Data.csv")
         interface = create_chat_interface(student_data)
         interface.launch(share=True)
     except Exception as e:
         print(f"Error: {e}")
-
